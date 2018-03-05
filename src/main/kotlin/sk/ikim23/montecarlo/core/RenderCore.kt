@@ -34,6 +34,12 @@ class RenderCore {
         }
     }
 
+    fun clear() {
+        synchronized(services) {
+            services.clear()
+        }
+    }
+
     private fun start() {
         synchronized(services) {
             services.forEach { it.start() }

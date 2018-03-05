@@ -4,27 +4,25 @@ import sk.ikim23.montecarlo.controllers.XYData
 import sk.ikim23.montecarlo.core.IServiceTask
 import java.util.*
 
-class ChangeGuessTask : IServiceTask<XYData> {
-    val randGuess: Random
-    val randCar: Random
-    val numDoors = 3
+class ChangeGuessTask(val maxReps: Int, val doors: Int) : IServiceTask<XYData> {
+    val randGuess = Random()
+    val randCar = Random()
     var reps = 0
     var wins = 0.0
 
-    init {
-        val rand = Random()
-        randGuess = Random(rand.nextLong())
-        randCar = Random(rand.nextLong())
-    }
-
     override fun initialize() {
+        val rand = Random()
+        randGuess.setSeed(rand.nextLong())
+        randCar.setSeed(rand.nextLong())
         reps = 0
         wins = 0.0
     }
 
+    override fun hasNext() = reps < maxReps
+
     override fun tick(): XYData {
-        val car = randCar.nextInt(numDoors)
-        val guess = randGuess.nextInt(numDoors)
+        val car = randCar.nextInt(doors)
+        val guess = randGuess.nextInt(doors)
         if (car != guess) {
             wins++
         }

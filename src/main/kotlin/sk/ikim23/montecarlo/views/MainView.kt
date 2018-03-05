@@ -8,40 +8,69 @@ import tornadofx.*
 
 class MainView : View() {
     override val root = borderpane()
-    val btnWidth = 70.0
+    val cWidth = 70.0
+    val cPadding = Insets(5.0)
+    val cSpacing = 5.0
+    val cAlignment = Pos.CENTER_LEFT
     val controller: MainController by inject()
 
     init {
         title = "Monte Carlo"
         root.top {
-            hbox {
-                padding = Insets(5.0)
-                spacing = 5.0
-                alignment = Pos.CENTER_LEFT
-                label("# Replications")
-                textfield {
-                    prefWidth = btnWidth
-                    textProperty().bindBidirectional(controller.numReplicationsProperty, IntConverter())
+            vbox {
+                hbox {
+                    padding = cPadding
+                    spacing = cSpacing
+                    alignment = cAlignment
+                    label("Replications:")
+                    textfield {
+                        prefWidth = cWidth
+                        textProperty().bindBidirectional(controller.numReplicationsProperty, IntConverter())
+                    }
+                    label("Points/Group:")
+                    textfield {
+                        prefWidth = cWidth
+                        textProperty().bindBidirectional(controller.maxPointsProperty, IntConverter())
+                    }
+                    button("Start") {
+                        prefWidth = cWidth
+                        disableProperty().bind(controller.startDisableProperty)
+                        setOnAction { controller.start() }
+                    }
+                    button("Pause") {
+                        prefWidth = cWidth
+                        disableProperty().bind(controller.pauseDisableProperty)
+                        setOnAction { controller.pause() }
+                    }
+                    button("Stop") {
+                        prefWidth = cWidth
+                        disableProperty().bind(controller.stopDisableProperty)
+                        setOnAction { controller.stop() }
+                    }
                 }
-                button("Start") {
-                    prefWidth = btnWidth
-                    disableProperty().bind(controller.startDisableProperty)
-                    setOnAction { controller.start() }
+                hbox {
+                    padding = cPadding
+                    spacing = cSpacing
+                    alignment = cAlignment
+                    label("Doors:")
+                    textfield {
+                        prefWidth = 50.0
+                        textProperty().bindBidirectional(controller.numDoorsProperty, IntConverter())
+                    }
+                    checkbox("Show Keep Guess") {
+                        selectedProperty().bindBidirectional(controller.keepGuessVisibleProperty)
+                        disableProperty().bind(controller.keepGuessDisableProperty)
+                    }
+                    checkbox("Show Change Guess") {
+                        selectedProperty().bindBidirectional(controller.changeGuessVisibleProperty)
+                        disableProperty().bind(controller.changeGuessDisableProperty)
+                    }
                 }
-                button("Pause") {
-                    prefWidth = btnWidth
-                    disableProperty().bind(controller.pauseDisableProperty)
-                    setOnAction { controller.pause() }
-                }
-                button("Stop") {
-                    prefWidth = btnWidth
-                    disableProperty().bind(controller.stopDisableProperty)
-                    setOnAction { controller.stop() }
-                }
+                separator()
             }
         }
         root.center {
-            linechart(title, NumberAxis(), NumberAxis()) {
+            linechart("", NumberAxis(), NumberAxis()) {
                 xAxis.animated = false
                 yAxis.animated = false
                 animated = false

@@ -17,30 +17,50 @@ class MainController : Controller() {
     val pauseDisableProperty = SimpleBooleanProperty()
     val stopDisableProperty = SimpleBooleanProperty()
     val numReplicationsProperty = SimpleIntegerProperty(1_000_000)
+    val maxPointsProperty = SimpleIntegerProperty(1_000)
     val keepGuessSeries = XYChart.Series<Number, Number>()
     val changeGuessSeries = XYChart.Series<Number, Number>()
     val chartData = listOf(keepGuessSeries, changeGuessSeries).observable()
+    val numDoorsProperty = SimpleIntegerProperty(3)
+    val keepGuessVisibleProperty = SimpleBooleanProperty(true)
+    val keepGuessDisableProperty = SimpleBooleanProperty()
+    val changeGuessVisibleProperty = SimpleBooleanProperty(true)
+    val changeGuessDisableProperty = SimpleBooleanProperty()
     val simCore = RenderCore()
 
     init {
         keepGuessSeries.name = "Keep Guess"
         changeGuessSeries.name = "Change Guess"
         updateButtons()
-        simCore.statusProperty.onChange { updateButtons() }
+        simCore.statusProperty.onChange { status ->
+            updateButtons()
+            if (status == Status.RUNNING) {
+                keepGuessDisableProperty.set(true)
+                changeGuessDisableProperty.set(true)
+            } else {
+                keepGuessDisableProperty.set(false)
+                changeGuessDisableProperty.set(false)
+            }
+        }
         numReplicationsProperty.onChange { updateButtons() }
-        simCore.registerService(Service(KeepGuessTask(), object : IResultRenderer<XYData> {
-            override fun render(results: List<XYData>) {
-                keepGuessSeries.data.addAll(results)
-            }
-        }))
-        simCore.registerService(Service(ChangeGuessTask(), object : IResultRenderer<XYData> {
-            override fun render(results: List<XYData>) {
-                changeGuessSeries.data.addAll(results)
-            }
-        }))
+        maxPointsProperty.onChange { updateButtons() }
     }
 
     fun start() {
+        keepGuessSeries.data.clear()
+        changeGuessSeries.data.clear()
+        simCore.clear()
+        val skipPoints = ((1.0 / maxPointsProperty.get()) * numReplicationsProperty.get()).toInt()
+        simCore.registerService(Service(KeepGuessTask(numReplicationsProperty.get(), numDoorsProperty.get()), object : IResultRenderer<XYData> {
+            override fun render(results: List<XYData>) {
+                keepGuessSeries.data.addAll(results)
+            }
+        }, skipPoints))
+        simCore.registerService(Service(ChangeGuessTask(numReplicationsProperty.get(), numDoorsProperty.get()), object : IResultRenderer<XYData> {
+            override fun render(results: List<XYData>) {
+                changeGuessSeries.data.addAll(results)
+            }
+        }, skipPoints))
         simCore.statusProperty.set(Status.RUNNING)
     }
 
@@ -53,8 +73,9 @@ class MainController : Controller() {
     }
 
     private fun updateButtons() {
-        if (numReplicationsProperty.value > 0) {
-            when (simCore.statusProperty.value) {
+        if (maxPointsProperty.get() > 0 &&
+                numReplicationsProperty.get() > maxPointsProperty.get()) {
+            when (simCore.statusProperty.get()) {
                 Status.RUNNING -> {
                     startDisableProperty.set(true)
                     pauseDisableProperty.set(false)

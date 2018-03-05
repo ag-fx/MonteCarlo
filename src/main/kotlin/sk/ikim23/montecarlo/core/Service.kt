@@ -3,13 +3,11 @@ package sk.ikim23.montecarlo.core
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
-class Service<T>(task: IServiceTask<T>, renderer: IResultRenderer<T>, maxResults: Int = 100) : IService {
+class Service<T>(private val task: IServiceTask<T>, private val renderer: IResultRenderer<T>,
+                 private val skipResults: Int, private val maxResults: Int = 100) : IService {
     private val lock = Object()
     private val status = AtomicReference<Status>(Status.STOPPED)
-    private val maxResults = maxResults
     private val results = ArrayList<T>(maxResults)
-    private val task = task
-    private val renderer = renderer
 
     override fun render() {
         synchronized(lock) {
@@ -47,7 +45,8 @@ class Service<T>(task: IServiceTask<T>, renderer: IResultRenderer<T>, maxResults
             results.clear()
             task.initialize()
             status.set(Status.RUNNING)
-            while (status.get() != Status.STOPPED) {
+            var tickCount = 0
+            while (task.hasNext() && status.get() != Status.STOPPED) {
                 if (status.get() == Status.PAUSED) {
                     synchronized(lock) {
                         try {
@@ -66,9 +65,12 @@ class Service<T>(task: IServiceTask<T>, renderer: IResultRenderer<T>, maxResults
                         }
                     }
                     val result = task.tick()
-                    results.add(result)
+                    if (tickCount++ % skipResults == 0) {
+                        results.add(result)
+                    }
                 }
             }
+            status.set(Status.STOPPED)
         }
     }
 }
