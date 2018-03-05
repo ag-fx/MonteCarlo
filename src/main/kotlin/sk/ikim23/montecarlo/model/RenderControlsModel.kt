@@ -4,29 +4,27 @@ import javafx.beans.property.*
 import sk.ikim23.montecarlo.core.Status
 import tornadofx.*
 
-class RenderControlModel(private val statusProperty: ReadOnlyProperty<Status>, reps: Int = 1_000_000, maxPts: Int = 1_000) {
-    private val replications = SimpleIntegerProperty(reps)
-    private val maxPoints = SimpleIntegerProperty(maxPts)
+class RenderControlsModel(private val statusProperty: ObjectProperty<Status>, reps: Int, maxPts: Int) {
+    val replicationsProperty = SimpleIntegerProperty(reps)
+    val maxPointsProperty = SimpleIntegerProperty(maxPts)
     private val startDisable = SimpleBooleanProperty()
     private val pauseDisable = SimpleBooleanProperty()
     private val stopDisable = SimpleBooleanProperty()
 
     init {
         statusProperty.onChange { update() }
-        replications.onChange { update() }
-        maxPoints.onChange { update() }
+        replicationsProperty.onChange { update() }
+        maxPointsProperty.onChange { update() }
         update()
     }
 
-    fun replicationsProperty() = replications
-    fun maxPointsProperty() = maxPoints
     fun startDisableProperty(): ReadOnlyBooleanProperty = startDisable
     fun pauseDisableProperty(): ReadOnlyBooleanProperty = pauseDisable
     fun stopDisableProperty(): ReadOnlyBooleanProperty = stopDisable
-    fun skipPoints() = ((1.0 / maxPoints.value) * replications.value).toInt()
+    fun skipPoints() = ((1.0 / maxPointsProperty.value) * replicationsProperty.value).toInt()
 
     private fun update() {
-        val validData = 0 < maxPoints.value && maxPoints.value < replications.value
+        val validData = 0 < maxPointsProperty.value && maxPointsProperty.value < replicationsProperty.value
         if (validData) {
             when (statusProperty.value) {
                 Status.RUNNING -> {

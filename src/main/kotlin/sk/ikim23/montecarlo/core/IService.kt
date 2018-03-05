@@ -5,4 +5,5 @@ interface IService {
     fun start()
     fun pause()
     fun stop()
+    fun isDone(): Boolean
 }

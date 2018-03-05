@@ -1,101 +1,76 @@
 package sk.ikim23.montecarlo.controllers
 
+import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleBooleanProperty
-import javafx.beans.property.SimpleIntegerProperty
+import javafx.beans.property.SimpleStringProperty
 import javafx.scene.chart.XYChart
-import sk.ikim23.montecarlo.core.IResultRenderer
-import sk.ikim23.montecarlo.core.RenderCore
-import sk.ikim23.montecarlo.core.Service
-import sk.ikim23.montecarlo.core.Status
+import sk.ikim23.montecarlo.core.*
+import sk.ikim23.montecarlo.model.*
 import sk.ikim23.montecarlo.problem.*
 import tornadofx.*
+import java.util.concurrent.Callable
 
 typealias XYData = XYChart.Data<Number, Number>
 
 class MainController : Controller() {
-    val startDisableProperty = SimpleBooleanProperty()
-    val pauseDisableProperty = SimpleBooleanProperty()
-    val stopDisableProperty = SimpleBooleanProperty()
-    val numReplicationsProperty = SimpleIntegerProperty(1_000_000)
-    val maxPointsProperty = SimpleIntegerProperty(1_000)
-    val keepGuessSeries = XYChart.Series<Number, Number>()
-    val changeGuessSeries = XYChart.Series<Number, Number>()
+    private val core = RenderCore()
+    private val keepGuessSeries = XYChart.Series<Number, Number>()
+    private val changeGuessSeries = XYChart.Series<Number, Number>()
     val chartData = listOf(keepGuessSeries, changeGuessSeries).observable()
-    val numDoorsProperty = SimpleIntegerProperty(3)
-    val keepGuessVisibleProperty = SimpleBooleanProperty(true)
-    val keepGuessDisableProperty = SimpleBooleanProperty()
-    val changeGuessVisibleProperty = SimpleBooleanProperty(true)
-    val changeGuessDisableProperty = SimpleBooleanProperty()
-    val simCore = RenderCore()
+    val render = RenderControlsModel(core.statusProperty, 1_000_000, 1_000)
+    val graph = GraphControlsModel(3)
+    val simRunningProperty = SimpleBooleanProperty()
+    val keepGuessValueProperty = SimpleStringProperty(0.toString())
+    val changeGuessValueProperty = SimpleStringProperty(0.toString())
 
     init {
         keepGuessSeries.name = "Keep Guess"
         changeGuessSeries.name = "Change Guess"
-        updateButtons()
-        simCore.statusProperty.onChange { status ->
-            updateButtons()
-            if (status == Status.RUNNING) {
-                keepGuessDisableProperty.set(true)
-                changeGuessDisableProperty.set(true)
-            } else {
-                keepGuessDisableProperty.set(false)
-                changeGuessDisableProperty.set(false)
-            }
-        }
-        numReplicationsProperty.onChange { updateButtons() }
-        maxPointsProperty.onChange { updateButtons() }
+        simRunningProperty.bind(Bindings.createBooleanBinding(Callable<Boolean> { core.statusProperty.value != Status.STOPPED }, core.statusProperty))
     }
 
     fun start() {
-        keepGuessSeries.data.clear()
-        changeGuessSeries.data.clear()
-        simCore.clear()
-        val skipPoints = ((1.0 / maxPointsProperty.get()) * numReplicationsProperty.get()).toInt()
-        simCore.registerService(Service(KeepGuessTask(numReplicationsProperty.get(), numDoorsProperty.get()), object : IResultRenderer<XYData> {
-            override fun render(results: List<XYData>) {
-                keepGuessSeries.data.addAll(results)
+        if (core.statusProperty.value == Status.STOPPED) {
+            clear()
+            val reps = render.replicationsProperty.value
+            val doors = graph.doorsProperty.value
+            val skipPoints = render.skipPoints()
+            if (graph.keepGuessVisibleProperty.value) {
+                core.registerService(Service(KeepGuessTask(reps, doors), object : IResultRenderer<XYData> {
+                    override fun render(results: List<XYData>) {
+                        keepGuessSeries.data.addAll(results)
+                        val last = results.lastOrNull()
+                        if (last != null) keepGuessValueProperty.set(last.yValue.toString())
+                    }
+                }, skipPoints))
             }
-        }, skipPoints))
-        simCore.registerService(Service(ChangeGuessTask(numReplicationsProperty.get(), numDoorsProperty.get()), object : IResultRenderer<XYData> {
-            override fun render(results: List<XYData>) {
-                changeGuessSeries.data.addAll(results)
+            if (graph.changeGuessVisibleProperty.value) {
+                core.registerService(Service(ChangeGuessTask(reps, doors), object : IResultRenderer<XYData> {
+                    override fun render(results: List<XYData>) {
+                        changeGuessSeries.data.addAll(results)
+                        val last = results.lastOrNull()
+                        if (last != null) changeGuessValueProperty.set(last.yValue.toString())
+                    }
+                }, skipPoints))
             }
-        }, skipPoints))
-        simCore.statusProperty.set(Status.RUNNING)
+        }
+        core.start()
     }
 
     fun pause() {
-        simCore.statusProperty.set(Status.PAUSED)
+        core.pause()
     }
 
     fun stop() {
-        simCore.statusProperty.set(Status.STOPPED)
+        core.stop()
+        clear()
     }
 
-    private fun updateButtons() {
-        if (maxPointsProperty.get() > 0 &&
-                numReplicationsProperty.get() > maxPointsProperty.get()) {
-            when (simCore.statusProperty.get()) {
-                Status.RUNNING -> {
-                    startDisableProperty.set(true)
-                    pauseDisableProperty.set(false)
-                    stopDisableProperty.set(false)
-                }
-                Status.PAUSED -> {
-                    startDisableProperty.set(false)
-                    pauseDisableProperty.set(true)
-                    stopDisableProperty.set(false)
-                }
-                Status.STOPPED -> {
-                    startDisableProperty.set(false)
-                    pauseDisableProperty.set(true)
-                    stopDisableProperty.set(true)
-                }
-            }
-        } else {
-            startDisableProperty.set(true)
-            pauseDisableProperty.set(true)
-            stopDisableProperty.set(true)
-        }
+    private fun clear() {
+        keepGuessSeries.data.clear()
+        changeGuessSeries.data.clear()
+        keepGuessValueProperty.set(0.toString())
+        changeGuessValueProperty.set(0.toString())
+        core.clear()
     }
 }

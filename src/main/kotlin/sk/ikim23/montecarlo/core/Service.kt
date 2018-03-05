@@ -9,6 +9,8 @@ class Service<T>(private val task: IServiceTask<T>, private val renderer: IResul
     private val status = AtomicReference<Status>(Status.STOPPED)
     private val results = ArrayList<T>(maxResults)
 
+    override fun isDone() = !task.hasNext()
+
     override fun render() {
         synchronized(lock) {
             renderer.render(results)
@@ -22,10 +24,9 @@ class Service<T>(private val task: IServiceTask<T>, private val renderer: IResul
     }
 
     override fun start() {
-        when (status.get()) {
-            Status.PAUSED -> status.set(Status.RUNNING)
-            Status.STOPPED -> startThread()
-        }
+        val s = status.get()
+        if (s == Status.PAUSED) status.set(Status.RUNNING)
+        else if (s == Status.STOPPED) startThread()
     }
 
     override fun pause() {
@@ -41,7 +42,7 @@ class Service<T>(private val task: IServiceTask<T>, private val renderer: IResul
     }
 
     private fun startThread() {
-        thread {
+        thread(true, true) {
             results.clear()
             task.initialize()
             status.set(Status.RUNNING)
