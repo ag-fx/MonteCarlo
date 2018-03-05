@@ -41,10 +41,11 @@ class MainView : View() {
             }
         }
         root.center {
-            scatterchart("title", NumberAxis(), NumberAxis()) {
+            linechart(title, NumberAxis(), NumberAxis()) {
                 xAxis.animated = false
                 yAxis.animated = false
                 animated = false
+                data = controller.chartData
             }
         }
     }
