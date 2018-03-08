@@ -27,8 +27,8 @@ class ChangeGuessTask(val maxReps: Int, val doors: Int) : IServiceTask<XYData> {
     override fun tick(): XYData {
         val car = randCar.nextInt(doors)
         val guess1 = randGuess1.nextInt(doors)
-        var openDoors = skipIfContains(randDoors.nextInt(doors), guess1, car)
-        val guess2 = skipIfContains(randGuess2.nextInt(doors), guess1, openDoors)
+        var openDoors = randWithout(randDoors, guess1, car)
+        val guess2 = randWithout(randGuess2, guess1, openDoors)
         if (car == guess2) {
             wins++
         }
@@ -36,12 +36,9 @@ class ChangeGuessTask(val maxReps: Int, val doors: Int) : IServiceTask<XYData> {
         return XYData(reps, wins / reps)
     }
 
-    fun skipIfContains(value: Int, vararg blackList: Int): Int {
-        var result = value
-        while (blackList.contains(result)) {
-            result++
-            if (result >= doors) result = 0
-        }
-        return result
+    fun randWithout(rand: Random, v1: Int, v2: Int): Int {
+        val values = (0..(doors - 1)).filter { it != v1 && it != v2 }
+        val idx = rand.nextInt(values.size)
+        return values[idx]
     }
 }
